@@ -31,7 +31,21 @@ function getToutesBases()
     return $bases;
 }
 
+function regulariser()
+{
+    $bases = getToutesBases();
 
+    for ($i = 0; $i < count($bases) - 1; $i++) {
+        $nom_base = $bases[$i];
+        $conn = connexionBD($nom_base);
+        $check = mysqli_query($conn, "SHOW TABLES LIKE 'codif_paiement'");
+        if (mysqli_num_rows($check) == 0) {
+            mysqli_close($conn);
+            continue;
+        }
+        print_r("Base: " . $nom_base . "<br>");
+    }
+}
 function verifierUtilisateursToutesBases($num_etu)
 {
     $bases = getToutesBases();
@@ -102,13 +116,12 @@ function verifierUtilisateursToutesBases($num_etu)
                 'nb_mois_payes' => $nbr_mois_payer,
                 'nb_mois_impayes' => $nbr_mois_impaye,
                 'montant_restant' => $nbr_mois_impaye * 3000,
-                'base' => $nom_base
+                'base' => $nom_base,
+                'connexion' => $conn,
             ];
             mysqli_close($conn); // Toujours fermer la connexion avant de quitter
             return; // Stoppe totalement la fonction
         }
-
-        echo "<hr>";
     }
 }
 
@@ -1370,6 +1383,12 @@ function getOneByAffectation($num_etu)
 /********************************************************************************** 
 Fonction d'affichage des information du lit deja valider par le personnel selon son numero etudiant, elle sera appeler dans la page paiement
  ********************************************************************************* */
+function getOneByValidate_1($num_etu, $connexion)
+{
+    $requeteLitClasseValide = "SELECT *, vl.id_val, CASE WHEN pc.id_val IS NOT NULL THEN 'Migré dans codif_paiement' WHEN codif_paiement.id_val IS NOT NULL THEN 'Migré dans autre_table' ELSE 'Non migré' END AS migration_status FROM codif_validation vl JOIN codif_affectation a ON vl.id_aff = a.id_aff JOIN codif_etudiant ce ON a.id_etu = ce.id_etu JOIN codif_lit cl ON a.id_lit = cl.id_lit LEFT JOIN codif_paiement pc ON vl.id_val = pc.id_val LEFT JOIN codif_paiement ON vl.id_val = codif_paiement.id_val WHERE ce.num_etu = '$num_etu'";
+    $resultatRequeteLitClasseValide = mysqli_query($connexion, $requeteLitClasseValide);
+    return $resultatRequeteLitClasseValide;
+}
 function getOneByValidate($num_etu)
 {
     global $connexion;
@@ -1527,6 +1546,16 @@ Fonction permet l'enregistrement des paiements de lit validé par le personnels
 function setPaiement($buttonId, $user, $montant, $libelle, $quittance, $an, $ordre)
 {
     global $connexion, $requete;
+    $date = date("Y-m-d H:i:s");
+
+    $requeteInsertcodif_quota = "INSERT INTO `codif_paiement` (`id_val`, `username_user`, `dateTime_paie`, `montant`,`libelle`,`quittance`,`an`,`num_ordre_user`) 
+	VALUES ('$buttonId', '$user', '$date', '$montant', '$libelle','$quittance','$an','$ordre')";
+    $requete = $connexion->prepare($requeteInsertcodif_quota);
+    return $requete->execute();
+}
+function setPaiement_1($buttonId, $user, $montant, $libelle, $quittance, $an, $ordre, $connexion)
+{
+    global $requete;
     $date = date("Y-m-d H:i:s");
 
     $requeteInsertcodif_quota = "INSERT INTO `codif_paiement` (`id_val`, `username_user`, `dateTime_paie`, `montant`,`libelle`,`quittance`,`an`,`num_ordre_user`) 
@@ -1827,6 +1856,12 @@ function getPaginationFiltreClasse($filter, $sexe)
 /********************************************************************************** 
 Fonction d'affichage les information de l'utilisateur connecté (etudiant)
  ********************************************************************************* */
+function studentConnect_1($username, $connexion)
+{
+    $users = "SELECT * FROM `codif_etudiant` where `num_etu`='$username'";
+    $info = $connexion->query($users);
+    return $info->fetch_assoc();
+}
 function studentConnect($username)
 {
     global $connexion;
@@ -2202,6 +2237,12 @@ function addPolitiqueConf($idEtu)
  * *********************************************************************************
  */
 // Fonction qui me retourne le quota de n'importe quelle classe
+function getQuotaClasse_1($classe, $sexe, $connexion)
+{
+    $requeteQuotaClasse = "SELECT COUNT(*) FROM `codif_quota` JOIN codif_lit ON codif_lit.id_lit = codif_quota.id_lit_q WHERE `NiveauFormation` = '$classe' AND codif_lit.sexe = '$sexe'";
+    $resultRequeteQuotaClasse = mysqli_query($connexion, $requeteQuotaClasse);
+    return $resultRequeteQuotaClasse->fetch_assoc();
+}
 function getQuotaClasse($classe, $sexe)
 {
     global $connexion;
@@ -2467,6 +2508,50 @@ ORDER BY rang ASC;
 /**********************************************************************************
 Fonction d'affichage de la liste des etudiant beneficiaire de lit titulaire et quota
  ********************************************************************************* */
+function getStatutStudentByQuota_1($quota, $classe, $sexe, $connexion)
+{
+    $requeteListeClasse = "SELECT 
+    ce.id_etu, 
+    ce.prenoms, 
+    ce.nom, 
+    ce.sexe, 
+    ce.num_etu, 
+    ce.dateNaissance, 
+    ce.sessionId, 
+    ce.moyenne, 
+    ce.niveauFormation,
+    ce.etablissement,
+    ranks.rang, 
+    CASE 
+        WHEN $quota=0 THEN 'Non Defini'
+		WHEN cf.id_etu IS NOT NULL THEN 'Forclos(e)' 
+        WHEN ranks.rang <= $quota THEN 'Attributaire' 
+        WHEN ranks.rang <= $quota*2 THEN 'Suppleant(e)' 
+        ELSE 'Non Attributaire' 
+    END AS statut 
+FROM codif_etudiant ce
+LEFT JOIN (
+    SELECT 
+        id_etu, 
+        ROW_NUMBER() OVER (ORDER BY sessionId ASC, moyenne DESC, id_etu ASC, dateNaissance ASC) AS rang 
+    FROM codif_etudiant 
+    WHERE niveauFormation = '$classe' 
+      AND sexe = '$sexe' 
+      AND id_etu NOT IN (SELECT id_etu FROM codif_forclusion)
+) ranks ON ce.id_etu = ranks.id_etu
+LEFT JOIN codif_forclusion cf ON ce.id_etu = cf.id_etu
+WHERE ce.niveauFormation = '$classe' 
+  AND ce.sexe = '$sexe' 
+ORDER BY rang ASC;
+";
+    $resultRequeteListeClasse = mysqli_query($connexion, $requeteListeClasse);
+
+    $students = [];
+    while ($row = mysqli_fetch_assoc($resultRequeteListeClasse)) {
+        $students[] = $row;
+    }
+    return $students;
+}
 function getStatutStudentByQuota($quota, $classe, $sexe)
 {
     global $connexion;
@@ -2639,6 +2724,13 @@ function deleteAffectation($id_etu)
 /********************************************************************************** 
 Verifier si l'etudiant est deja forclos
  ********************************************************************************* */
+function getIsForclu_1($num_etu, $connexion)
+{
+    $studentValidate = "SELECT * FROM `codif_forclusion` JOIN codif_etudiant ON codif_etudiant.id_etu =codif_forclusion.id_etu WHERE codif_etudiant.num_etu = '$num_etu'";
+    $infoValite = mysqli_query($connexion, $studentValidate);
+    $data = $infoValite->fetch_assoc();
+    return $data;
+}
 function getIsForclu($num_etu)
 {
     global $connexion;
@@ -2783,6 +2875,17 @@ Fonction pour recuperer le tableaux d'etudiants Attributaire, Suppleant(e), non-
 }*/
 
 
+function getAllDatastudentStatus_1($quota, $classe, $sexe, $connexion)
+{
+    $listeClasse = getStatutStudentByQuota_1($quota, $classe, $sexe, $connexion);
+    // $tableau_data_etudiant = [];
+    // $i = 0;
+    // while ($row = mysqli_fetch_array($listeClasse)) {
+    //     $tableau_data_etudiant[$i] = $row;
+    //     $i++;
+    // }
+    return $listeClasse;
+}
 function getAllDatastudentStatus($quota, $classe, $sexe)
 {
     $listeClasse = getStatutStudentByQuota($quota, $classe, $sexe);
@@ -2816,6 +2919,15 @@ function getAllDatastudentStatus_2($quota, $classe, $sexe, $rang)
 /* ********************************************************************************* 
 Fonction pour recuperer les données d'un etudiants Attributaire, Suppleant(e), non-Attributaire et forclos
 ********************************************************************************* */
+function getOnestudentStatus_1($quota, $classe, $sexe, $num_etu, $connexion)
+{
+    $row_one_student = getAllDatastudentStatus_1($quota, $classe, $sexe, $connexion);
+    for ($i = 0; $i < count($row_one_student); $i++) {
+        if ($num_etu == $row_one_student[$i]['num_etu']) {
+            return $row_one_student[$i];
+        }
+    }
+}
 function getOnestudentStatus($quota, $classe, $sexe, $num_etu)
 {
     $row_one_student = getAllDatastudentStatus($quota, $classe, $sexe);

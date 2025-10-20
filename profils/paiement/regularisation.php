@@ -175,179 +175,156 @@ if (isset($_GET['data'])) {
             <div class="col-md-12">
                 <ul class="options">
                     <?php
-                    if (isset($data)) {
-                        $tableau_data_etudiant = getAllSituation($data['num_etu']);
-                    ?>
-                        <form action="requestPaiement" method="POST">
-                            <div class="row" style="display: flex;justify-content: center;color:black;">
-                                <div class="col-md-4 mb-3">
-                                    <input type="text" class="form-control" placeholder="Prénom: <?= $data['prenoms'] ?>" disabled>
-                                </div>
-                                <div class="col-md-4">
-                                    <input class="form-control" placeholder="Nom: <?= $data['nom'] ?>" disabled>
-                                </div>
-                            </div>
-                            <div class="row" style="display: flex;justify-content: center;color:black;">
-                                <div class="col-md-4 mb-3">
-                                    <input class="form-control" placeholder="Faculté: <?= $data['etablissement'] ?>" disabled>
-                                </div>
-                                <div class="col-md-4">
-                                    <input class="form-control" placeholder="Niveau: <?= $data['niveauFormation'] ?>" disabled>
-                                </div>
-                            </div><br> 
-                            <?php
-                            if (isset($_GET['statut']) && $_GET['statut'] == 'Forclos(e)') { ?>
-							
-							
-							<?php $type=$data['type'];          if($data['type']=='auto'){$type='Automatique';} 
-								      $motif=$data['motif_manuel']; if($data['type']=='auto'){$motif='Retard';} 								
-								?>				
-							
-                                <div class="row" style="display: flex;justify-content: center;color:black;">
-                                    <div class="col-md-4 mb-3">
-                                        <input class="form-control" placeholder="Type : <?= $type ?>" disabled>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <input class="form-control" placeholder="Motif :<?= $motif ?>" disabled>
-                                    </div>
-                                </div><br>
-								
-                            <?php } ?>
-                            <?php if (isset($data['id_aff'])) { ?>
-                                <!-- <div class="row" style="display: flex;justify-content: center;color:black;">
-                                    <div class="col-md-4 mb-3">
-                                        <input class="form-control" placeholder="CNI: <?= $data['numIdentite'] ?>" disabled>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <input class="form-control" placeholder="Campus: <?= $data['campus'] ?>" disabled>
-                                    </div>
-                                </div><br-->
-                                <div class="row" style="display: flex;justify-content: center;color:black;">
-                                    <div class="col-md-4 mb-3">
-                                        <input class="form-control" placeholder="Pavillon: <?= $data['pavillon'] ?>" disabled>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <input class="form-control" placeholder="Lit: <?= $data['lit'] ?>" disabled>
-                                        <input class="form-control" name="id_etu" value="<?= $data['id_etu'] ?>" style="visibility: hidden;">
-                                    </div>
-                                </div>
-                                <!--div class="row" style="display: flex;justify-content: center;color:black;">
-                                    <div class="col-md-4 mb-3">
-                                        <input class="form-control" placeholder="Date Choix Lit: <?= dateFromat($data['dateTime_aff']) ?>" disabled>
-                                    </div-->
-                                    <div class="col-md-4 mb-3" style="margin-left:30%">
-									<?php $date=$data['dateTime_val'];$date=changedateusfr($date); ?>
-                                        <input class="form-control" placeholder="Validation faite le <?= $date ?>" disabled>
-                                    </div>
-                                <!--/div> -->
-                                <div class="col-md-8" style="margin-left:17%">
-                                    <table align='center' class="table table-hover">
-                                        <tr class="table" style="font-size: 16px; font-weight: 400; background-color:#3777b0;">
-                                            <td>Quittance</td>
-                                            <td>Date Paie</td>
-                                            <td>Libelle</td>
-                                            <td>Montant</td>
-                                            <!--td>Recu</td>
-                                            <td>Restant</td-->
-                                            <td>Agent ACP</td>
-                                        </tr>
-                                        <?php while ($row = mysqli_fetch_array($tableau_data_etudiant)) {
-                                        ?>
-                                            <tr class="table" style="font-size: 14px; background-color: rgba(50, 115, 220, 0.1) ;">
-                                                <td><?= $row['quittance'] ?></td>
-                                                <td><?= dateFromat($row['dateTime_paie']) ?></td>
-                                                <td><?= $row['libelle'] ?></td>
-                                                <td><?= $row['montant'] ?></td>
-                                                <!--td><?php //$row['montant_recu'] ?></td>
-                                                <td><?php //$row['restant'] ?></td-->
-                                                <td><?= $row[2] ?></td>
-                                            </tr>
-                                        <?php } ?>
-                                    </table>
-                                </div>
-                                <?php
+                    if (isset($_GET['file'])) {
+                        $fileName = basename($_GET['file']);
+                        $filePath = __DIR__ . '/tmp/' . $fileName;
+                        if (file_exists($filePath)) {
+                            $json = file_get_contents($filePath);
+                            $datas = json_decode($json, true);
+                            if (is_array($datas)) {
+                                foreach ($datas as $data) {
+                                    $bd_connect =  verifierUtilisateursToutesBases($data['num_etu'])['connexion'];
+                                    $tableau_data_etudiant = getAllSituation_2($data['num_etu'], $bd_connect);
 
-                               // if ($test == "true") {
-                                    // $_SESSION['a_jour'] = "ETUDIANT A JOUR AUX PAIEMENTS"
-                                ?>
-                                    <!-- <div class="row" style="display: flex;justify-content: center;color:black;">
-                                        <div class="col-md-4 mb-3">
-                                            <input type="number" class="form-control" name="montant" placeholder="Montant: <?= $data['montant']; ?> Fr cfa" disabled>
+                    ?>
+                                    <form action="requestRegularisation" method="POST">
+                                        <div class="row" style="display: flex;justify-content: center;color:black;">
+                                            <div class="col-md-4 mb-3">
+                                                <input type="text" class="form-control" placeholder="Prénom: <?= $data['prenoms'] ?>" disabled>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <input class="form-control" placeholder="Nom: <?= $data['nom'] ?>" disabled>
+                                            </div>
                                         </div>
-                                        <div class="col-md-4 mb-3"><?php $libelle = str_replace(['[', ']', '"'], '', $data['libelle']); ?>
-                                            <textarea class="form-control" placeholder="Libelle: <?= $libelle; ?>" name="libelle" disabled></textarea>
+                                        <div class="row" style="display: flex;justify-content: center;color:black;">
+                                            <div class="col-md-4 mb-3">
+                                                <input class="form-control" placeholder="Faculté: <?= $data['etablissement'] ?>" disabled>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <input class="form-control" placeholder="Niveau: <?= $data['niveauFormation'] ?>" disabled>
+                                            </div>
+                                        </div><br>
+                                        <?php
+                                        if (isset($_GET['statut']) && $_GET['statut'] == 'Forclos(e)') { ?>
+
+
+                                            <?php $type = $data['type'];
+                                            if ($data['type'] == 'auto') {
+                                                $type = 'Automatique';
+                                            }
+                                            $motif = $data['motif_manuel'];
+                                            if ($data['type'] == 'auto') {
+                                                $motif = 'Retard';
+                                            }
+                                            ?>
+
+                                            <div class="row" style="display: flex;justify-content: center;color:black;">
+                                                <div class="col-md-4 mb-3">
+                                                    <input class="form-control" placeholder="Type : <?= $type ?>" disabled>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <input class="form-control" placeholder="Motif :<?= $motif ?>" disabled>
+                                                </div>
+                                            </div><br>
+
+                                        <?php } ?>
+                                        <?php if (isset($data['id_aff'])) { ?>
+                                            <div class="row" style="display: flex;justify-content: center;color:black;">
+                                                <div class="col-md-4 mb-3">
+                                                    <input class="form-control" placeholder="Pavillon: <?= $data['pavillon'] ?>" disabled>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <input class="form-control" placeholder="Lit: <?= $data['lit'] ?>" disabled>
+                                                    <input class="form-control" name="id_etu" value="<?= $data['id_etu'] ?>" style="visibility: hidden;">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4 mb-3" style="margin-left:30%">
+                                                <?php $date = $data['dateTime_val'];
+                                                $date = changedateusfr($date); ?>
+                                                <input class="form-control" placeholder="Validation faite le <?= $date ?>" disabled>
+                                                <input class="form-control" name="num_etu" value="<?= $data['num_etu'] ?>" style="visibility: hidden;">
+                                            </div>
+                                            <div class="col-md-8" style="margin-left:17%">
+                                                <table align='center' class="table table-hover">
+                                                    <tr class="table" style="font-size: 16px; font-weight: 400; background-color:#3777b0;">
+                                                        <td>Quittance</td>
+                                                        <td>Date Paie</td>
+                                                        <td>Libelle</td>
+                                                        <td>Montant</td>
+                                                        <td>Agent ACP</td>
+                                                    </tr>
+                                                    <?php while ($row = mysqli_fetch_array($tableau_data_etudiant)) {
+                                                    ?>
+                                                        <tr class="table" style="font-size: 14px; background-color: rgba(50, 115, 220, 0.1) ;">
+                                                            <td><?= $row['quittance'] ?></td>
+                                                            <td><?= dateFromat($row['dateTime_paie']) ?></td>
+                                                            <td><?= $row['libelle'] ?></td>
+                                                            <td><?= $row['montant'] ?></td>
+                                                            <td><?= $row[2] ?></td>
+                                                        </tr>
+                                                    <?php } ?>
+                                                </table>
+                                            </div>
+                                            <?php
+                                        } ?>
+                                            <div class="row" style="display: flex;justify-content: center;color:black;">
+                                                <div class="col-md-4">
+                                                    <input type="number" name="montant_recu" class="form-control" placeholder="Montant recu" required>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <select id="libelle" name="libelle[]" multiple class="selectpicker form-control" data-live-search="true" placeholder="SELECTIONNER ICI ..." required>
+                                                        <option value="CAUTION">CAUTION</option>
+                                                        <option value="OCTOBRE">OCTOBRE</option>
+                                                        <option value="NOVEMBRE">NOVEMBRE</option>
+                                                        <option value="DECEMBRE">DECEMBRE</option>
+                                                        <option value="JANVIER">JANVIER</option>
+                                                        <option value="FEVRIER">FEVRIER</option>
+                                                        <option value="MARS">MARS</option>
+                                                        <option value="AVRIL">AVRIL</option>
+                                                        <option value="MAI">MAI</option>
+                                                        <option value="JUIN">JUIN</option>
+                                                        <option value="JUILLET">JUILLET</option>
+                                                        <option value="AOUT">AOUT</option>
+                                                        <option value="SEPTEMBRE">SEPTEMBRE</option>
+
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <br>
+                                            <button class="btn btn-success" type="button" data-toggle="modal" data-target="#confirmationModal">ENCAISSER</button>
+                                        <?php
+                                        }
+                                        ?>
+                                        <div class="modal fade" id="confirmationModal" tabindex="-1" role="dialog" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+                                            <div class="modal-dialog" role="document">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title" id="confirmationModalLabel">Confirmation</h5>
+                                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                            <span aria-hidden="true">&times;</span>
+                                                        </button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        Êtes-vous sûr de vouloir effectuer cette action ?
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                                                        <button type="submit" class="btn btn-primary">Confirmer</button>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="row" style="display: flex;justify-content: center;color:black;">
-                                        <div class="col-md-4 mb-3">
-                                            <input class="form-control" placeholder="Date Paiement: <?= dateFromat($data['dateTime_paie']) ?>" disabled>
-                                        </div>
-                                    </div> -->
-                                    <!--a class="btn btn-secondary" href="/campuscoud.com/profils/paiement/paiement" type="button">RETOUR</a-->
-                                <?php
-                              //  } else {
-                                ?>
-                                    <!--div class="row" style="display: flex;justify-content: center;color:black;">
-                                        <div class="col-md-4">
-                                            <input type="number" class="form-control" name="montant" disabled placeholder="Montant à payer : <?php //$_a_payer; ?> fr cfa">
-                                            <input type="number" class="form-control" name="montant" value="<?php //$_a_payer; ?>" style="visibility: hidden;">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <input type="number" class="form-control" disabled placeholder="Mois impayer : <?php //$nbr_mois_impaye; ?> mois">
-                                        </div>
-                                    </div-->
-                                    <div class="row" style="display: flex;justify-content: center;color:black;">
-                                        <div class="col-md-4">
-                                            <input type="number" name="montant_recu" class="form-control" placeholder="Montant recu"    required>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <select id="libelle" name="libelle[]" multiple class="selectpicker form-control" data-live-search="true" placeholder="SELECTIONNER ICI ..." required>
-                                                <option value="CAUTION">CAUTION</option>
-												<option value="OCTOBRE">OCTOBRE</option>
-                                                <option value="NOVEMBRE">NOVEMBRE</option>
-                                                <option value="DECEMBRE">DECEMBRE</option>
-                                                <option value="JANVIER">JANVIER</option>
-                                                <option value="FEVRIER">FEVRIER</option>
-                                                <option value="MARS">MARS</option>
-                                                <option value="AVRIL">AVRIL</option>
-                                                <option value="MAI">MAI</option>
-                                                <option value="JUIN">JUIN</option>
-                                                <option value="JUILLET">JUILLET</option>
-                                                <option value="AOUT">AOUT</option>
-                                                <option value="SEPTEMBRE">SEPTEMBRE</option>
-                                                
-                                            </select>
-                                        </div>
-                                    </div>
-									<br>
-                                    <button class="btn btn-success" type="button" data-toggle="modal" data-target="#confirmationModal">ENCAISSER</button>
-                                <?php //}
-                            } else { ?>
-                                <a class="btn btn-secondary" href="/campuscoud.com/profils/paiement/paiement" type="button">RETOUR</a>
-                            <?php } ?>
-                            <div class="modal fade" id="confirmationModal" tabindex="-1" role="dialog" aria-labelledby="confirmationModalLabel" aria-hidden="true">
-                                <div class="modal-dialog" role="document">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title" id="confirmationModalLabel">Confirmation</h5>
-                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                                <span aria-hidden="true">&times;</span>
-                                            </button>
-                                        </div>
-                                        <div class="modal-body">
-                                            Êtes-vous sûr de vouloir effectuer cette action ?
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
-                                            <button type="submit" class="btn btn-primary">Confirmer</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <?php if (isset($data['id_val'])) { ?>
-                                <input class="form-control" name="valide" value="<?= $data['id_val'] ?>" style="visibility: hidden;">
-                            <?php } ?>
-                        </form>
+                                        <?php if (isset($data['id_val'])) { ?>
+                                            <input class="form-control" name="valide" value="<?= $data['id_val'] ?>" style="visibility: hidden;">
+                                        <?php } ?>
+                                    </form>
+                        <?php
+                                    break;
+                                }
+                            }
+                            unlink($filePath);
+                        }
+                        ?>
                     <?php } ?>
                 </ul>
             </div>
